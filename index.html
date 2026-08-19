@@ -342,6 +342,13 @@ function escapeHtml(str){
   return (str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function cleanField(str){
+  let s = (str||'').trim();
+  // 拿掉頭尾多餘的直引號/彎引號，避免 CSV 匯出時因儲存格內含引號而跳脫失敗
+  s = s.replace(/^["""]+/, '').replace(/["""]+$/, '');
+  return s.trim();
+}
+
 async function loadCommands(){
   content.innerHTML = '<div class="loading">載入中...</div>';
 
@@ -358,9 +365,9 @@ async function loadCommands(){
     const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
     const rows = parsed.data
       .map(r => ({
-        title: (r['標題']||'').trim(),
-        purpose: (r['功用']||'').trim(),
-        content: (r['指令內容']||'').trim(),
+        title: cleanField(r['標題']),
+        purpose: cleanField(r['功用']),
+        content: cleanField(r['指令內容']),
         category: (r['分類']||r['類別']||'').trim() || '其他'
       }))
       .filter(r => r.title && r.content);
@@ -375,8 +382,12 @@ async function loadCommands(){
 
 const CATEGORY_ORDER = ['foundi指令', '通用指令'];
 
+function normalizeCategory(name){
+  return (name||'').replace(/\s+/g, '');
+}
+
 function groupOrder(name){
-  const idx = CATEGORY_ORDER.indexOf(name);
+  const idx = CATEGORY_ORDER.indexOf(normalizeCategory(name));
   return idx === -1 ? CATEGORY_ORDER.length : idx;
 }
 
