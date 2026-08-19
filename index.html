@@ -281,7 +281,7 @@
    之後拿到 Google Sheet「發布到網路」的 CSV 連結，把它填進這裡即可，
    網頁會自動改抓 Sheet 的最新資料；填之前先用下面的示範資料展示畫面。
 */
-const CSV_URL = "https://docs.google.com/spreadsheets/d/1KXG9WA6Jy9u8gCixHBXi-4M1khn2OEuVI8Mv3lfZFPY/gviz/tq?tqx=out:csv";
+const DATA_URL = "https://docs.google.com/spreadsheets/d/1KXG9WA6Jy9u8gCixHBXi-4M1khn2OEuVI8Mv3lfZFPY/gviz/tq?tqx=out:json&headers=1";
 
 const MOCK_DATA = [
   {
@@ -352,23 +352,27 @@ function cleanField(str){
 async function loadCommands(){
   content.innerHTML = '<div class="loading">載入中...</div>';
 
-  if(!CSV_URL){
+  if(!DATA_URL){
     commands = MOCK_DATA.map((c, i) => ({ ...c, id: i }));
     render();
     return;
   }
 
   try{
-    const res = await fetch(CSV_URL, { cache: 'no-store' });
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
     if(!res.ok) throw new Error('fetch failed');
     const text = await res.text();
-    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
-    const rows = parsed.data
-      .map(r => ({
-        title: cleanField(r['標題']),
-        purpose: cleanField(r['功用']),
-        content: cleanField(r['指令內容']),
-        category: (r['分類']||r['類別']||'').trim() || '其他'
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    const data = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+    const cell = (row, i) => (row.c && row.c[i] && row.c[i].v != null) ? String(row.c[i].v) : '';
+
+    const rows = (data.table.rows || [])
+      .map(row => ({
+        title: cleanField(cell(row, 0)),
+        purpose: cleanField(cell(row, 1)),
+        content: cleanField(cell(row, 2)),
+        category: cleanField(cell(row, 3)) || '其他'
       }))
       .filter(r => r.title && r.content);
 
